@@ -1,0 +1,90 @@
+package com.impetus.Hello;
+
+import java.io.IOException;
+import java.util.StringTokenizer;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+/**
+ * Reads Even and Odd Number from Input Text File and finds sum of all even numbers present in the file.
+ * @author impadmin
+ *
+ */
+public class EvenOdd {
+	
+	static Text even = new Text("EVEN");
+	static Text odd = new Text("ODD");
+	public class TokenizerMapper extends
+			Mapper<Object, Text, Text, IntWritable> {
+
+
+		Text input=new Text();
+		IntWritable ONE = new IntWritable();
+		public void map(Object key, Text value, Context context)
+				throws IOException, InterruptedException {		
+				int num=0;
+			   StringTokenizer itr = new StringTokenizer(value.toString());
+			   
+			   while (itr.hasMoreTokens()) 
+			   {
+				   String number=itr.nextToken();
+				   num=Integer.parseInt(number);
+				   ONE.set(num);
+				   if(num % 2 ==0 )
+				   {
+					   input.set("EVEN");
+						
+				   }
+				   else
+				   {
+					   input.set("ODD");
+						
+				   }	
+				   context.write(input, ONE);
+				   break;
+			   }
+		
+		}
+	}
+public class EvenSumReducer extends
+			Reducer<Text, IntWritable, Text, IntWritable> {
+		IntWritable result = new IntWritable();
+		Text word2 = new Text();
+		int sum=0;
+		public void reduce(Text key, Iterable<IntWritable> values,
+				Context context) throws IOException, InterruptedException {
+
+			if(key.toString().equals("even"))
+			{
+				for (IntWritable val : values)
+				{
+					sum+=val.get();
+				}
+				result.set(sum);
+				context.write(key, result);
+			}
+		}
+	}
+
+	public static void main(String[] args) throws Exception {
+		Configuration conf = new Configuration();
+		Job job = Job.getInstance(conf, "SUM NUM");
+		job.setJarByClass(EvenOdd.class);
+		job.setMapperClass(TokenizerMapper.class);
+		job.setReducerClass(EvenSumReducer.class);
+		job.setOutputKeyClass(Text.class);
+		job.setOutputValueClass(IntWritable.class);
+		FileInputFormat.addInputPath(job, new Path("/user/impadmin/input.txt"));
+		FileOutputFormat.setOutputPath(job, new Path(
+				"/user/impadmin/output.txt"));
+		System.exit(job.waitForCompletion(true) ? 0 : 1);
+	}
+}
